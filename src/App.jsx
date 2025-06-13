@@ -18,6 +18,9 @@ function App() {
     // You can now send this token to your backend for verification
   };
 
+  const SITE_KEY = "0x4AAAAAABg8fBKvm3kslBsU";
+  console.log("v1");
+
   return (
     <>
       <div>
@@ -42,7 +45,7 @@ function App() {
           <input type="text" name="source" placeholder="Source" />
           <input type="text" name="leadType" placeholder="Lead Type" />
         </div>
-        <div className="cf-turnstile" data-sitekey="YOUR_SITE_KEY"></div>
+        <div className="cf-turnstile" data-sitekey={SITE_KEY}></div>
         <button type="submit" value="Submit">
           Submit
         </button>
