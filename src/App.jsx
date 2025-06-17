@@ -6,16 +6,40 @@ import React, { useState, useEffect } from "react";
 function App() {
   const SITE_KEY = "0x4AAAAAABg8fBKvm3kslBsU";
   const [tokenReady, setTokenReady] = useState(false);
+  const turnstileRef = React.useRef(null);
+  const widgetIdRef = React.useRef(null);
+  /**
+   * 
+This useEffect is responsible for:
+Rendering the Cloudflare Turnstile widget explicitly when the component mounts.
+Cleaning up (removing) the widget when the component unmounts.
+   */
 
-  // Register the callback globally (for implicit mode)
   useEffect(() => {
-    // eslint-disable-next-line no-unused-vars
-    window.onTurnstileSuccess = function (token) {
-      setTokenReady(true);
-    };
-    // Clean up
+    function renderTurnstile() {
+      if (window.turnstile && turnstileRef.current) {
+        widgetIdRef.current = window.turnstile.render("#turnstile-container", {
+          sitekey: SITE_KEY,
+          // eslint-disable-next-line no-unused-vars
+          callback: function (token) {
+            setTokenReady(true);
+          },
+          "expired-callback": function () {
+            setTokenReady(false);
+          },
+        });
+      }
+    }
+
+    // Wait for the script to load
+    if (window.turnstile && window.turnstile.ready) {
+      window.turnstile.ready(renderTurnstile);
+    }
+    // Cleanup: remove widget on unmount
     return () => {
-      delete window.onTurnstileSuccess;
+      if (window.turnstile && widgetIdRef.current) {
+        window.turnstile.remove(widgetIdRef.current);
+      }
     };
   }, []);
 
@@ -23,7 +47,7 @@ function App() {
     event.preventDefault();
     setTokenReady(false); // Disable submit until new token is ready
 
-    const token = event.target["cf-turnstile-response"]?.value;
+    const token = window.turnstile.getResponse(widgetIdRef.current);
     if (!token) {
       alert("Please complete the Turnstile challenge.");
       return;
@@ -44,10 +68,10 @@ function App() {
     );
     const data = await response.json();
     console.log(data);
-    console.log(window.turnstile.reset());
+    window.turnstile.reset(widgetIdRef.current);
   };
 
-  console.log("v3 implicit turnstile widget rendering");
+  console.log("v4.0 explicit-render-turnstile-widget");
 
   return (
     <>
@@ -60,6 +84,14 @@ function App() {
         </a>
       </div>
       <h1>Turnstile</h1>
+      {/* When you use explicit rendering (i.e., you call turnstile.render('#turnstile-container', ...)), 
+          the widget can be rendered in any container you specify by ID or ref. 
+          The container can be inside or outside the form. */}
+
+      {/* In implicit mode, Turnstile automatically injects a hidden input into the form, so it needs to be inside the form to work seamlessly. */}
+      {/* In explicit mode, you control everything, so the widget can be anywhere on the page. */}
+
+      <div id="turnstile-container" ref={turnstileRef}></div>
       <form onSubmit={handleSubmit}>
         <div className="form-fields">
           <input type="text" name="dealerId" placeholder="Dealer ID" />
@@ -73,11 +105,6 @@ function App() {
           <input type="text" name="source" placeholder="Source" />
           <input type="text" name="leadType" placeholder="Lead Type" />
         </div>
-        <div
-          className="cf-turnstile"
-          data-sitekey={SITE_KEY}
-          data-callback="onTurnstileSuccess"
-        ></div>
         <button
           type="submit"
           value="Submit"
